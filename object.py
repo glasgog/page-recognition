@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""
+page-recognition recognize book pages and play a related given sound
+Copyright (C) 2017  Ilario Digiacomo
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 
 import numpy as np
 import argparse
@@ -80,6 +97,8 @@ def drawMatches(img1, kp1, img2, kp2, matches):
     return out
 
 
+# ============== MAIN ===================== #
+
 # construct the argument parser and parse the arguments
 # ap = argparse.ArgumentParser()
 # ap.add_argument("-i", "--image", required = True,
@@ -87,37 +106,83 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 # args = vars(ap.parse_args())
 
 # load images
-img1 = cv2.imread('notre1.jpg',0)           # queryImage
-img2 = cv2.imread('notre2.jpg',0) 			# trainImage
+#img1 = cv2.imread('page3_ref.jpg',0)		# queryImage
+img2 = cv2.imread('page_unk.jpg',0)			# trainImage
 # print_dimension(img1)
 # print_dimension(img2)
 
 ratio = float(img2.shape[0])/500
-img1 = resize(img1, ratio) #NOTE: overwriting!
+#img1 = resize(img1, ratio) #NOTE: overwriting!
 img2 = resize(img2, ratio) #NOTE: overwriting!
+
+FIRST_IMG_INDEX = 1
+IMAGE_NUMBER = 3
+ref_img = [resize(cv2.imread('page' + str(i) + '_ref.jpg',0),ratio) for i in range(FIRST_IMG_INDEX, IMAGE_NUMBER+FIRST_IMG_INDEX) ]
+# count=1
+# for img in ref_img:
+#     cv2.imshow('Image '+ str(count), img)
+#     count+=1
 
 # Initiate ORB detector
 orb = cv2.ORB()
+
 # find the keypoints with ORB
-kp1 = orb.detect(img1,None)
 kp2 = orb.detect(img2,None)
 # compute the descriptors with ORB
-kp1, des1 = orb.compute(img1, kp1)
 kp2, des2 = orb.compute(img2, kp2)
 
-# BFMatcher with default params
+kp_ref = []
+des_ref = []
+for img in ref_img:
+    kp = orb.detect(img,None)
+    kp, des = orb.compute(img, kp)
+    kp_ref.append(kp)
+    des_ref.append(des)
+print "..keypoint and descriptor computed"
+
+# create BFMatcher object
 bf = cv2.BFMatcher()
-matches = bf.knnMatch(des1,des2, k=2)
+
+# Match descriptors.
+# matches = bf.match(des1,des2)
+# matches = bf.knnMatch(des1,des2, k=2)
+match = []
+for des in des_ref:
+    matches = bf.knnMatch(des,des2, k=2)
+    match.append(matches)
+print "..matches computed"
+
+# Sort them in the order of their distance.
+# matches = sorted(matches, key = lambda x:x.distance)
 
 # Apply ratio test
-good = []
-for m,n in matches:
-    if m.distance < 0.75*n.distance:
-       # Add first matched keypoint to list
-       # if ratio test passes
-       good.append(m)
+# good = []
+# for m,n in matches:
+#     if m.distance < 0.75*n.distance:
+#        # Add first matched keypoint to list
+#        # if ratio test passes
+#        good.append(m)
 
-img3 = drawMatches(img1, kp1, img2, kp2, good) #NOTE: i should use gray images
+best_good_match = [0,0]
+best_good=None
+count=0
+for each_match in match:
+    good = []
+    for m,n in each_match:
+        if m.distance < 0.75*n.distance:
+           # Add first matched keypoint to list
+           # if ratio test passes
+           good.append(m)
+    l = len(good)
+    print ".." + str(l) + " good matches with reference " + str(count)
+    if l > best_good_match[0]:
+        best_good_match = [l,count]
+        best_good = good[:]
+    # img3 = drawMatches(ref_img[count], kp_ref[count], img2, kp2, good)
+    count+=1
+print "\nBEST PAGE: " + str(best_good_match[1]+FIRST_IMG_INDEX) + " with " + str(best_good_match[0]) + " feature match\n"
+
+img3 = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[1]], img2, kp2, best_good) #NOTE: i should use gray images
 
 #cv2.imshow("Outline", img3)
 cv2.waitKey(0)
