@@ -20,22 +20,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import argparse
 import cv2
-from random import randint #per randomizzare colore features
+from random import randint  # per randomizzare colore features
+
 
 def print_dimension(img):
-	print "image shape: " \
-		+ "h=" + str(img.shape[0]) \
-		+ ", w=" + str(img.shape[1]) \
-		+ ", d=" + str(img.shape[2])
+    print "image shape: " \
+        + "h=" + str(img.shape[0]) \
+        + ", w=" + str(img.shape[1]) \
+        + ", d=" + str(img.shape[2])
+
 
 def resize(img, ratio):
-	""" height is the reference 
-        ratio have to be float """
-	dimension=(int(img.shape[1]/ratio),int(img.shape[0]/ratio)) #(w,h)
-	print "resizing at: " + str(dimension)
-	print " with ratio: " + str(ratio)
-	resized = cv2.resize(img, dimension, interpolation = cv2.INTER_AREA)
-	return resized
+    """ height is the reference 
+    ratio have to be float """
+    dimension = (int(img.shape[1] / ratio), int(img.shape[0] / ratio))  # (w,h)
+    print "resizing at: " + str(dimension)
+    print " with ratio: " + str(ratio)
+    resized = cv2.resize(img, dimension, interpolation=cv2.INTER_AREA)
+    return resized
+
 
 def drawMatches(img1, kp1, img2, kp2, matches):
     """
@@ -57,26 +60,30 @@ def drawMatches(img1, kp1, img2, kp2, matches):
     rows2 = img2.shape[0]
     cols2 = img2.shape[1]
     out = np.zeros((rows2, cols2, 3), dtype='uint8')
-    out = np.dstack([img2, img2, img2]) # fill the output with the second image
+    # fill the output with the second image
+    out = np.dstack([img2, img2, img2])
 
     # For each pair of points we have between both images
     # draw circles, then connect a line between them
     if not matches == None:
-        img1 = img1.copy() # Funziona?
-        ratio = float(4*img1.shape[0]) / img2.shape[0]
+        img1 = img1.copy()  # Funziona?
+        ratio = float(4 * img1.shape[0]) / img2.shape[0]
         if DEBUG:
             print "ratio=" + str(ratio)
 
-        img1 = resize(img1,ratio) #WARNING: sto sovrascrivendo immagine
+        img1 = resize(img1, ratio)  # WARNING: sto sovrascrivendo immagine
 
-        # Create a new output image that concatenates the two images together (a.k.a) a montage
+        # Create a new output image that concatenates the two images together
+        # (a.k.a) a montage
         rows1 = img1.shape[0]
         cols1 = img1.shape[1]
-        
-        DELTAX = DELTAY = rows2/16 #intero. Spostamento rispetto angolo superiore destro
-        
-        # Place the resized first image to on the second with a delta from the right corner
-        out[DELTAY:rows1+DELTAY,cols2-cols1-DELTAX:cols2-DELTAX] = np.dstack([img1, img1, img1])
+
+        DELTAX = DELTAY = rows2 / 16  # intero. Spostamento rispetto angolo superiore destro
+
+        # Place the resized first image to on the second with a delta from the
+        # right corner
+        out[DELTAY:rows1 + DELTAY, cols2 - cols1 -
+            DELTAX:cols2 - DELTAX] = np.dstack([img1, img1, img1])
 
         for mat in matches:
             if not mat == None:
@@ -88,18 +95,23 @@ def drawMatches(img1, kp1, img2, kp2, matches):
                 (x1, y1) = kp1[img1_idx].pt
                 (x2, y2) = kp2[img2_idx].pt
 
-                (x1, y1) = (int(float(x1)/ratio), int(float(y1)/ratio)) #ridimensiono le coord dei punti dato che ho ridimensionato le ref img
-                (x1, y1) = (x1+cols2-cols1-DELTAX, y1+DELTAY) #aggiungo l'offset dovuto alla posizione di visualizzazione
+                # ridimensiono le coord dei punti dato che ho ridimensionato le
+                # ref img
+                (x1, y1) = (int(float(x1) / ratio), int(float(y1) / ratio))
+                # aggiungo l'offset dovuto alla posizione di visualizzazione
+                (x1, y1) = (x1 + cols2 - cols1 - DELTAX, y1 + DELTAY)
 
                 # Draw a small circle at both co-ordinates
                 radius = 4
-                color=(randint(0,255),randint(0,128),randint(0,128)) # random color
+                color = (randint(0, 255), randint(0, 128),
+                         randint(0, 128))  # random color
                 thickness = 1
                 cv2.circle(out, (int(x1), int(y1)), radius, color, thickness)
                 cv2.circle(out, (int(x2), int(y2)), radius, color, thickness)
 
                 # Draw a line in between the two points
-                cv2.line(out, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
+                cv2.line(out, (int(x1), int(y1)),
+                         (int(x2), int(y2)), color, thickness)
 
     # Show the image
     cv2.imshow('Matched Features', out)
@@ -121,30 +133,35 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 # args = vars(ap.parse_args())
 
 # load images
-#img1 = cv2.imread('page3_ref.jpg',0)		# queryImage
-img2 = cv2.imread('page_unk.jpg',0)			# trainImage
+# img1 = cv2.imread('page3_ref.jpg',0)		# queryImage
+# img2 = cv2.imread('page_unk.jpg',0)		# trainImage
 # print_dimension(img1)
 # print_dimension(img2)
 
-ratio = float(img2.shape[0])/500
-#img1 = resize(img1, ratio) #NOTE: overwriting!
-img2 = resize(img2, ratio) #NOTE: overwriting!
+# ratio = float(img2.shape[0])/500
+# img1 = resize(img1, ratio) #NOTE: overwriting!
+# img2 = resize(img2, ratio) #NOTE: overwriting!
 
 cv2.namedWindow('Matched Features', cv2.CV_WINDOW_AUTOSIZE)
 cap = cv2.VideoCapture(0)
+# ret = cap.set(3,640) 
+# ret = cap.set(4,480
+
+import vlc as vlc                                               #########################
+f="sounds/1.mp3"                                                # HARDCODED!! FIX THIS! #
+p = vlc.MediaPlayer(f)                                          #########################
 
 FIRST_IMG_INDEX = 1
 IMAGE_NUMBER = 3
-ref_img = [resize(cv2.imread('page' + str(i) + '_ref.jpg',0),ratio) for i in range(FIRST_IMG_INDEX, IMAGE_NUMBER+FIRST_IMG_INDEX) ]
-# count=1
-# for img in ref_img:
-#     cv2.imshow('Image '+ str(count), img)
-#     count+=1
+# lista delle immagini di riferimento: ["page1_ref.jpg", "page2_ref.jpg", "page3_ref.jpg"]
+# devono essere gia' ridimensionate
+ref_img = [cv2.imread('page' + str(i) + '_ref.jpg', 0)
+           for i in range(FIRST_IMG_INDEX, IMAGE_NUMBER + FIRST_IMG_INDEX)]
 
 while(True):
     res, frame = cap.read()
     if not res:
-        continue #se non viene letto il frame passo al ciclo successivo
+        continue  # se non viene letto il frame passo al ciclo successivo
 
     print "original frame shape: " + str(frame.shape)
     # ratio=float(frame.shape[0])/500
@@ -157,14 +174,14 @@ while(True):
     orb = cv2.ORB()
 
     # find the keypoints with ORB
-    kp2 = orb.detect(img2,None)
+    kp2 = orb.detect(img2, None)
     # compute the descriptors with ORB
     kp2, des2 = orb.compute(img2, kp2)
 
     kp_ref = []
     des_ref = []
     for img in ref_img:
-        kp = orb.detect(img,None)
+        kp = orb.detect(img, None)
         kp, des = orb.compute(img, kp)
         kp_ref.append(kp)
         des_ref.append(des)
@@ -196,35 +213,40 @@ while(True):
     #        # if ratio test passes
     #        good.append(m)
 
-    best_good_match = [0,0]
-    best_good=None
-    count=0
+    best_good_match = [0, 0]  # [number_of_matches,index]
+    best_good = None
+    count = 0
     for each_match in match:
         # type(each_match)
         if each_match == None:
             continue
         good = []
-        for m,n in each_match:
-            if m.distance < 0.75*n.distance:
-               # Add first matched keypoint to list
-               # if ratio test passes
-               good.append(m)
+        for m, n in each_match:
+            if m.distance < 0.75 * n.distance:
+                # Add first matched keypoint to list
+                # if ratio test passes
+                good.append(m)
         l = len(good)
         print ".." + str(l) + " good matches with reference " + str(count)
         if l > best_good_match[0]:
-            best_good_match = [l,count]
+            best_good_match = [l, count]
             best_good = good[:]
         # img3 = drawMatches(ref_img[count], kp_ref[count], img2, kp2, good)
-        count+=1
-    print "\nBEST PAGE: " + str(best_good_match[1]+FIRST_IMG_INDEX) + " with " + str(best_good_match[0]) + " feature match\n"
+        count += 1
+    print "\nBEST PAGE: " + str(best_good_match[1] + FIRST_IMG_INDEX) + " with " + str(best_good_match[0]) + " feature match\n"
 
     # per non bloccare il video, se non c'e' match disegno solo il frame
     if best_good_match[0] >= 10:
-        res = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[1]], img2, kp2, best_good) #NOTE: i should use gray images
+        res = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[
+                          1]], img2, kp2, best_good)  # NOTE: i should use gray images
+        if not p.is_playing():
+            p.play()
     else:
-        res = drawMatches(np.zeros((1, 1, 1), dtype='uint8'), None, img2, None, None)
+        res = drawMatches(np.zeros((1, 1, 1), dtype='uint8'),
+                          None, img2, None, None)
+        p.stop()
     if not res:
-            break
+        break
 
 # When everything done, release the capture
 cap.release()
