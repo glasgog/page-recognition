@@ -177,6 +177,13 @@ while(True):
     img2 = resize(gray, 1)
     print "resized frame shape: " + str(img2.shape)
 
+    # trova la larghezza maggiore fra le ref image
+    MAX_REF_W = 0
+    for img in ref_img:
+        if img.shape[1] > MAX_REF_W:
+            MAX_REF_W = img.shape[1]
+    print "MAX_REF_W = " + str(MAX_REF_W)
+
     # Initiate ORB detector
     orb = cv2.ORB()
 
@@ -256,7 +263,7 @@ while(True):
         for s in sound:
             s.stop()
     if not res:
-        break
+        break # se premo q mentre quell'immagine viene visualizzata
 
 # When everything done, release the capture
 cap.release()
