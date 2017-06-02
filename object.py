@@ -20,7 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import argparse
 import cv2
-from random import randint  # per randomizzare colore features
+from random import randint  # for features color randomization
+
+import lib.vlc as vlc
 
 
 def print_dimension(img):
@@ -144,12 +146,8 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 
 cv2.namedWindow('Matched Features', cv2.CV_WINDOW_AUTOSIZE)
 cap = cv2.VideoCapture(0)
-# ret = cap.set(3,640) 
+# ret = cap.set(3,640)
 # ret = cap.set(4,480
-
-import vlc as vlc                                               #########################
-f="sounds/1.mp3"                                                # HARDCODED!! FIX THIS! #
-p = vlc.MediaPlayer(f)                                          #########################
 
 FIRST_IMG_INDEX = 1
 IMAGE_NUMBER = 3
@@ -157,6 +155,15 @@ IMAGE_NUMBER = 3
 # devono essere gia' ridimensionate
 ref_img = [cv2.imread('page' + str(i) + '_ref.jpg', 0)
            for i in range(FIRST_IMG_INDEX, IMAGE_NUMBER + FIRST_IMG_INDEX)]
+
+# initialize sound file
+# sound_file = "sounds/1.mp3"
+# p = vlc.MediaPlayer(sound_file)
+sound_files = ["sounds/" + str(i) + ".mp3" for i in range(
+    FIRST_IMG_INDEX, IMAGE_NUMBER + FIRST_IMG_INDEX)]
+sound = []
+for name in sound_files:
+    sound.append(vlc.MediaPlayer(name))
 
 while(True):
     res, frame = cap.read()
@@ -239,12 +246,15 @@ while(True):
     if best_good_match[0] >= 10:
         res = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[
                           1]], img2, kp2, best_good)  # NOTE: i should use gray images
-        if not p.is_playing():
-            p.play()
+        if not sound[best_good_match[1]].is_playing():
+            # p.play()
+            sound[best_good_match[1]].play()
     else:
         res = drawMatches(np.zeros((1, 1, 1), dtype='uint8'),
                           None, img2, None, None)
-        p.stop()
+        # p.stop()
+        for s in sound:
+            s.stop()
     if not res:
         break
 
