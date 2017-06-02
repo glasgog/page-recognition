@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import argparse
 import cv2
+from random import randint #per randomizzare colore features
 
 def print_dimension(img):
 	print "image shape: " \
@@ -51,50 +52,64 @@ def drawMatches(img1, kp1, img2, kp2, matches):
     for getting kp and matches 
     """
 
-    # Create a new output image that concatenates the two images together
-    rows1 = img1.shape[0]
-    cols1 = img1.shape[1]
+    DEBUG = False
+
     rows2 = img2.shape[0]
     cols2 = img2.shape[1]
-
-    out = np.zeros((max([rows1,rows2]),cols1+cols2,3), dtype='uint8')
-
-    # Place the first image to the left
-    out[:rows1,:cols1] = np.dstack([img1, img1, img1])
-    # Place the next image to the right of it
-    out[:rows2,cols1:] = np.dstack([img2, img2, img2])
+    out = np.zeros((rows2, cols2, 3), dtype='uint8')
+    out = np.dstack([img2, img2, img2]) # fill the output with the second image
 
     # For each pair of points we have between both images
     # draw circles, then connect a line between them
-    for mat in matches:
-        # Get the matching keypoints for each of the images
-        img1_idx = mat.queryIdx
-        img2_idx = mat.trainIdx
+    if not matches == None:
+        img1 = img1.copy() # Funziona?
+        ratio = float(4*img1.shape[0]) / img2.shape[0]
+        if DEBUG:
+            print "ratio=" + str(ratio)
 
-        # x - columns
-        # y - rows
-        (x1,y1) = kp1[img1_idx].pt
-        (x2,y2) = kp2[img2_idx].pt
+        img1 = resize(img1,ratio) #WARNING: sto sovrascrivendo immagine
 
-        # Draw a small circle at both co-ordinates
-        # radius 4
-        # colour blue
-        # thickness = 1
-        cv2.circle(out, (int(x1),int(y1)), 4, (255, 0, 0), 1)   
-        cv2.circle(out, (int(x2)+cols1,int(y2)), 4, (255, 0, 0), 1)
+        # Create a new output image that concatenates the two images together (a.k.a) a montage
+        rows1 = img1.shape[0]
+        cols1 = img1.shape[1]
+        
+        DELTAX = DELTAY = rows2/16 #intero. Spostamento rispetto angolo superiore destro
+        
+        # Place the resized first image to on the second with a delta from the right corner
+        out[DELTAY:rows1+DELTAY,cols2-cols1-DELTAX:cols2-DELTAX] = np.dstack([img1, img1, img1])
 
-        # Draw a line in between the two points
-        # thickness = 1
-        # colour blue
-        cv2.line(out, (int(x1),int(y1)), (int(x2)+cols1,int(y2)), (255, 0, 0), 1)
+        for mat in matches:
+            if not mat == None:
+                # Get the matching keypoints for each of the images
+                img1_idx = mat.queryIdx
+                img2_idx = mat.trainIdx
+
+                # x - columns, y - rows
+                (x1, y1) = kp1[img1_idx].pt
+                (x2, y2) = kp2[img2_idx].pt
+
+                (x1, y1) = (int(float(x1)/ratio), int(float(y1)/ratio)) #ridimensiono le coord dei punti dato che ho ridimensionato le ref img
+                (x1, y1) = (x1+cols2-cols1-DELTAX, y1+DELTAY) #aggiungo l'offset dovuto alla posizione di visualizzazione
+
+                # Draw a small circle at both co-ordinates
+                radius = 4
+                color=(randint(0,255),randint(0,128),randint(0,128)) # random color
+                thickness = 1
+                cv2.circle(out, (int(x1), int(y1)), radius, color, thickness)
+                cv2.circle(out, (int(x2), int(y2)), radius, color, thickness)
+
+                # Draw a line in between the two points
+                cv2.line(out, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
 
     # Show the image
     cv2.imshow('Matched Features', out)
-    cv2.waitKey(0)
-    cv2.destroyWindow('Matched Features')
+    # cv2.waitKey(0)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        return False
+    # cv2.destroyWindow('Matched Features')
 
     # Also return the image if you'd like a copy
-    return out
+    return True
 
 
 # ============== MAIN ===================== #
@@ -115,6 +130,9 @@ ratio = float(img2.shape[0])/500
 #img1 = resize(img1, ratio) #NOTE: overwriting!
 img2 = resize(img2, ratio) #NOTE: overwriting!
 
+cv2.namedWindow('Matched Features', cv2.CV_WINDOW_AUTOSIZE)
+cap = cv2.VideoCapture(0)
+
 FIRST_IMG_INDEX = 1
 IMAGE_NUMBER = 3
 ref_img = [resize(cv2.imread('page' + str(i) + '_ref.jpg',0),ratio) for i in range(FIRST_IMG_INDEX, IMAGE_NUMBER+FIRST_IMG_INDEX) ]
@@ -123,67 +141,91 @@ ref_img = [resize(cv2.imread('page' + str(i) + '_ref.jpg',0),ratio) for i in ran
 #     cv2.imshow('Image '+ str(count), img)
 #     count+=1
 
-# Initiate ORB detector
-orb = cv2.ORB()
+while(True):
+    res, frame = cap.read()
+    if not res:
+        continue #se non viene letto il frame passo al ciclo successivo
 
-# find the keypoints with ORB
-kp2 = orb.detect(img2,None)
-# compute the descriptors with ORB
-kp2, des2 = orb.compute(img2, kp2)
+    print "original frame shape: " + str(frame.shape)
+    # ratio=float(frame.shape[0])/500
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    img2 = resize(gray, 1)
+    print "resized frame shape: " + str(img2.shape)
 
-kp_ref = []
-des_ref = []
-for img in ref_img:
-    kp = orb.detect(img,None)
-    kp, des = orb.compute(img, kp)
-    kp_ref.append(kp)
-    des_ref.append(des)
-print "..keypoint and descriptor computed"
+    # Initiate ORB detector
+    orb = cv2.ORB()
 
-# create BFMatcher object
-bf = cv2.BFMatcher()
+    # find the keypoints with ORB
+    kp2 = orb.detect(img2,None)
+    # compute the descriptors with ORB
+    kp2, des2 = orb.compute(img2, kp2)
 
-# Match descriptors.
-# matches = bf.match(des1,des2)
-# matches = bf.knnMatch(des1,des2, k=2)
-match = []
-for des in des_ref:
-    matches = bf.knnMatch(des,des2, k=2)
-    match.append(matches)
-print "..matches computed"
+    kp_ref = []
+    des_ref = []
+    for img in ref_img:
+        kp = orb.detect(img,None)
+        kp, des = orb.compute(img, kp)
+        kp_ref.append(kp)
+        des_ref.append(des)
+    print "..keypoint and descriptor computed"
 
-# Sort them in the order of their distance.
-# matches = sorted(matches, key = lambda x:x.distance)
+    # create BFMatcher object
+    bf = cv2.BFMatcher()
 
-# Apply ratio test
-# good = []
-# for m,n in matches:
-#     if m.distance < 0.75*n.distance:
-#        # Add first matched keypoint to list
-#        # if ratio test passes
-#        good.append(m)
+    # Match descriptors.
+    # matches = bf.match(des1,des2)
+    # matches = bf.knnMatch(des1,des2, k=2)
+    match = []
+    for des in des_ref:
+        if not des2 == None:  # nell'immagine da esaminare devono esserci delle feature riconoscibili
+            matches = bf.knnMatch(des, des2, k=2)
+        else:
+            matches = None
+        match.append(matches)
+    print "..matches computed"
 
-best_good_match = [0,0]
-best_good=None
-count=0
-for each_match in match:
-    good = []
-    for m,n in each_match:
-        if m.distance < 0.75*n.distance:
-           # Add first matched keypoint to list
-           # if ratio test passes
-           good.append(m)
-    l = len(good)
-    print ".." + str(l) + " good matches with reference " + str(count)
-    if l > best_good_match[0]:
-        best_good_match = [l,count]
-        best_good = good[:]
-    # img3 = drawMatches(ref_img[count], kp_ref[count], img2, kp2, good)
-    count+=1
-print "\nBEST PAGE: " + str(best_good_match[1]+FIRST_IMG_INDEX) + " with " + str(best_good_match[0]) + " feature match\n"
+    # Sort them in the order of their distance.
+    # matches = sorted(matches, key = lambda x:x.distance)
 
-img3 = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[1]], img2, kp2, best_good) #NOTE: i should use gray images
+    # Apply ratio test
+    # good = []
+    # for m,n in matches:
+    #     if m.distance < 0.75*n.distance:
+    #        # Add first matched keypoint to list
+    #        # if ratio test passes
+    #        good.append(m)
 
-#cv2.imshow("Outline", img3)
-cv2.waitKey(0)
+    best_good_match = [0,0]
+    best_good=None
+    count=0
+    for each_match in match:
+        # type(each_match)
+        if each_match == None:
+            continue
+        good = []
+        for m,n in each_match:
+            if m.distance < 0.75*n.distance:
+               # Add first matched keypoint to list
+               # if ratio test passes
+               good.append(m)
+        l = len(good)
+        print ".." + str(l) + " good matches with reference " + str(count)
+        if l > best_good_match[0]:
+            best_good_match = [l,count]
+            best_good = good[:]
+        # img3 = drawMatches(ref_img[count], kp_ref[count], img2, kp2, good)
+        count+=1
+    print "\nBEST PAGE: " + str(best_good_match[1]+FIRST_IMG_INDEX) + " with " + str(best_good_match[0]) + " feature match\n"
+
+    # per non bloccare il video, se non c'e' match disegno solo il frame
+    if best_good_match[0] >= 10:
+        res = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[1]], img2, kp2, best_good) #NOTE: i should use gray images
+    else:
+        res = drawMatches(np.zeros((1, 1, 1), dtype='uint8'), None, img2, None, None)
+    if not res:
+            break
+
+# When everything done, release the capture
+cap.release()
 cv2.destroyAllWindows()
