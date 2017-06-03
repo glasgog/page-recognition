@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import argparse
 import cv2
+from os import path  # for template images and sound name join
 from random import randint  # for features color randomization
 
 import lib.vlc as vlc
@@ -157,14 +158,18 @@ FIRST_IMG_INDEX = 1
 IMAGE_NUMBER = 3
 # lista delle immagini di riferimento: ["page1_ref.jpg", "page2_ref.jpg", "page3_ref.jpg"]
 # devono essere gia' ridimensionate
-ref_img = [cv2.imread('page' + str(i) + '_ref.jpg', 0)
+ref_img = [cv2.imread(path.join('img', 'template', 'template' + str(i) + '.jpg'), 0)
            for i in range(FIRST_IMG_INDEX, IMAGE_NUMBER + FIRST_IMG_INDEX)]
+
+# i = cv2.imread(path.join('img','template',str(1)+'.jpg'),0)
+# print i.shape
 
 # initialize sound file
 # sound_file = "sounds/1.mp3"
 # p = vlc.MediaPlayer(sound_file)
-sound_files = ["sounds/" + str(i) + ".mp3" for i in range(
+sound_files = [path.join('sound', 'sound' + str(i) + '.mp3') for i in range(
     FIRST_IMG_INDEX, IMAGE_NUMBER + FIRST_IMG_INDEX)]
+
 sound = []
 for name in sound_files:
     sound.append(vlc.MediaPlayer(name))
