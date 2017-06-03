@@ -23,6 +23,7 @@ import cv2
 from random import randint  # for features color randomization
 
 import lib.vlc as vlc
+from lib.stabilize import suspicious as suspicious
 
 
 def print_dimension(img):
@@ -33,11 +34,14 @@ def print_dimension(img):
 
 
 def resize(img, ratio):
-    """ height is the reference 
+    """ height is the reference
     ratio have to be float """
-    dimension = (int(img.shape[1] / ratio), int(img.shape[0] / ratio))  # (w,h)
-    print "resizing at: " + str(dimension)
-    print " with ratio: " + str(ratio)
+    DEBUG = False
+    # (w,h). Note; img.shape=[height,width,color]
+    dimension = (int(img.shape[1] / ratio), int(img.shape[0] / ratio))
+    if DEBUG:
+        print "resizing at: " + str(dimension)
+        print " with ratio: " + str(ratio)
     resized = cv2.resize(img, dimension, interpolation=cv2.INTER_AREA)
     return resized
 
@@ -147,7 +151,7 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 cv2.namedWindow('Matched Features', cv2.CV_WINDOW_AUTOSIZE)
 cap = cv2.VideoCapture(0)
 # ret = cap.set(3,640)
-# ret = cap.set(4,480
+# ret = cap.set(4,480)
 
 FIRST_IMG_INDEX = 1
 IMAGE_NUMBER = 3
@@ -164,6 +168,10 @@ sound_files = ["sounds/" + str(i) + ".mp3" for i in range(
 sound = []
 for name in sound_files:
     sound.append(vlc.MediaPlayer(name))
+
+# inizializzazione lista dei pesi dei candidati e del candidate buffer
+candidates = len(ref_img) * [0]
+candidate_strength = 0
 
 while(True):
     res, frame = cap.read()
@@ -249,13 +257,25 @@ while(True):
         count += 1
     print "\nBEST PAGE: " + str(best_good_match[1] + FIRST_IMG_INDEX) + " with " + str(best_good_match[0]) + " feature match\n"
 
+    # use stabilization
+    best_candidate_index, candidate_strength = suspicious(
+        ref_img, best_good_match[0], best_good_match[1], candidates, candidate_strength)
+    print "\033[94m" + "candidate index is: " + str(best_candidate_index) + " with strength " + str(candidate_strength) + "\033[0m"
+
     # per non bloccare il video, se non c'e' match disegno solo il frame
-    if best_good_match[0] >= 10:
-        res = drawMatches(ref_img[best_good_match[1]], kp_ref[best_good_match[
-                          1]], img2, kp2, best_good)  # NOTE: i should use gray images
-        if not sound[best_good_match[1]].is_playing():
+    # if best_good_match[0] >= 10:
+    if best_candidate_index < len(ref_img):
+        # res = drawMatches(ref_img[best_good_match[1]],
+        # kp_ref[best_good_match[1]], img2, kp2, best_good)  # NOTE: i should
+        # use gray images
+        res = drawMatches(ref_img[best_candidate_index], kp_ref[
+                          best_candidate_index], img2, kp2, best_good)
+        # if not sound[best_good_match[1]].is_playing():
+        if not sound[best_candidate_index].is_playing():
+            # TODO: rendere piu' robusto: cosa succede se sta venendo gia' riprodotta un'altra canzone?
             # p.play()
-            sound[best_good_match[1]].play()
+            # sound[best_good_match[1]].play()
+            sound[best_candidate_index].play()
     else:
         res = drawMatches(np.zeros((1, 1, 1), dtype='uint8'),
                           None, img2, None, None)
@@ -263,7 +283,7 @@ while(True):
         for s in sound:
             s.stop()
     if not res:
-        break # se premo q mentre quell'immagine viene visualizzata
+        break  # se premo q mentre quell'immagine viene visualizzata
 
 # When everything done, release the capture
 cap.release()
